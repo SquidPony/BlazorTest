@@ -1,0 +1,111 @@
+﻿@page "/nasa/neo"
+@inject HttpClient Http
+
+<h3>NearEarthObjects</h3>
+
+@if (neoResponse is null) {
+	<button @onclick="ToggleNearEarthObjects">Show NEOs</button>
+} else {
+	<button @onclick="ToggleNearEarthObjects">Hide NEOs</button>
+	<div>
+		@if (neoResponse.NearEarthObjects != null) {
+			<ul>
+				@foreach (var (date, neos) in neoResponse.NearEarthObjects) {
+					<li>
+						Date: @date
+						<ul>
+							@foreach (var neo in neos) {
+								<li>
+									<div>
+									ID: @neo.Id, Name: 
+										@if (neo.Id[neo.Id.Length-1] % 2 == 0) { // grab the last character and go off it's codepoint, just need something that's not the same always
+											<input type="text" placeholder="@neo.Name" @bind-value="neo.ChangedName" /><button @onclick="@(() => UpdateName(neo.Id, neo.ChangedName))">Save</button>
+										} else { 
+											@neo.Name
+										}
+									</div>
+								</li>
+							}
+						</ul>
+					</li>
+				}
+			</ul>
+		}
+		@if (neoResponse.Extras != null) {
+			<ul>
+				@foreach (var (extraName, extraValue) in neoResponse.Extras) {
+					<li>
+						Key: @extraName, Value: @extraValue
+					</li>
+				}
+			</ul>
+		}
+	</div>
+}
+
+@code {
+	NASANearEarthObjectResponse neoResponse;
+
+	//protected override async Task OnInitializedAsync() {
+	public async Task ToggleNearEarthObjects() {
+		if (neoResponse is null){
+			var response = await Http.GetAsync($"https://api.nasa.gov/neo/rest/v1/feed?api_key={NASAContext.Key}");
+			string body = await response.Content.ReadAsStringAsync();
+			neoResponse = JsonConvert.DeserializeObject<NASANearEarthObjectResponse>(body);
+		} else {
+			neoResponse = null;
+		}
+	}
+
+	public void UpdateName(string id, string name) {
+		NASANearEarthObjectResponse.NearEarthObject neo = neoResponse.NearEarthObjects
+			.SelectMany(day => day.Value)
+			.Where(n => n.Id.Equals(id))
+			.FirstOrDefault();
+
+		if (neo == default) {
+			Console.WriteLine($"Could not update name, matching id not found for {id}");
+		} else {
+			Console.WriteLine($"Changed name of {id} from {neo.Name} to {name}");
+		}
+	}
+
+	public class NASANearEarthObjectResponse {
+		public LinkGroup Links;
+
+		[JsonProperty("element_count")]
+		public int ElementCount;
+
+		[JsonProperty("near_earth_objects")]
+		public IDictionary<string, IEnumerable<NearEarthObject>> NearEarthObjects = new Dictionary<string, IEnumerable<NearEarthObject>>();
+
+		[JsonExtensionData]
+		public IDictionary<string, Newtonsoft.Json.Linq.JToken> Extras;
+
+		public class LinkGroup {
+			public string Next;
+			public string Prev;
+			public string Self;
+		}
+
+		public class NearEarthObject {
+			public string ChangedName;
+
+			public LinkGroup Links;
+			public string Id;
+			public string Name;
+
+			[JsonProperty("nasa_jpl_url")]
+			public string NasaJplUrl;
+
+			[JsonProperty("absolute_magnitude_h")]
+			public double AbsoluteMagnitudeH;
+
+			[JsonProperty("is_potentially_hazardous_asteroid")]
+			public bool PotentiallyHazardous;
+
+			[JsonExtensionData]
+			public IDictionary<string, Newtonsoft.Json.Linq.JToken> Extras;
+		}
+	}
+}

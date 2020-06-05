@@ -1,0 +1,57 @@
+﻿@page "/nasa/pod"
+@inject HttpClient Http
+
+<h3>PictureOfTheDay</h3>
+
+@if (pod is null) {
+	<button @onclick="FetchPictureOfTheDay">Get Picture</button>
+} else {
+	<div>
+		Date: @pod.Date<br />
+		URL: <a href="@pod.Url">@pod.Url</a>
+		<div>
+			@switch (pod.MediaType) {
+				case "image":
+					<img src="@pod.Url" />
+					break;
+				case "video":
+					<iframe width="960" height="540" src="@pod.Url" frameborder="0" allowfullscreen></iframe>
+					break;
+				default:
+					<div>Not a known type: @pod.MediaType</div>
+					break;
+			}
+		</div>
+		<div>
+			<ul>
+				@foreach (var kvp in pod.Extras) {
+					<li>
+						Key: @kvp.Key, Value: @kvp.Value
+					</li>
+				}
+			</ul>
+		</div>
+	</div>
+}
+
+@code {
+	NASAPictureOfTheDay pod;
+
+	//protected override async Task OnInitializedAsync() {
+	public async Task FetchPictureOfTheDay() {
+		var response = await Http.GetAsync($"https://api.nasa.gov/planetary/apod?hd=true&api_key={NASAContext.Key}");
+		string body = await response.Content.ReadAsStringAsync();
+		pod = JsonConvert.DeserializeObject<NASAPictureOfTheDay>(body);
+	}
+
+	public class NASAPictureOfTheDay {
+		public string Date;
+		public string Explanation;
+		[JsonProperty("media_type")]
+		public string MediaType;
+		public string Title;
+		public string Url;
+		[JsonExtensionData]
+		public IDictionary<string, Newtonsoft.Json.Linq.JToken> Extras;
+	}
+}

@@ -1,0 +1,10 @@
+﻿@page "/nasa"
+@inject HttpClient Http
+
+<h3>NASA</h3>
+
+<div>Current Key: <input placeholder="Please Enter Key" @bind="NASAContext.Key" size="50"/></div>
+@if (!(NASAContext.Key is null)) {
+	<PictureOfTheDay />
+	<NearEarthObjects />
+}
